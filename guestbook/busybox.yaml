@@ -1,0 +1,25 @@
+apiVersion: apps/v1 #  for k8s versions before 1.9.0 use apps/v1beta2  and before 1.8.0 use extensions/v1beta1
+kind: Deployment
+metadata:
+  name: busybox-deployment
+spec:
+  selector:
+    matchLabels:
+      app: mybusybox
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mybusybox
+    spec:
+      containers:
+      - name: busybox-pod
+        image: busybox
+        command:
+          - sleep
+          - "3600"
+        resources:
+          requests:
+            cpu: 10m
+            memory: 50Mi
+        imagePullPolicy: IfNotPresent
