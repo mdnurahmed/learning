@@ -1,0 +1,61 @@
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   creationTimestamp: "2022-11-20T08:44:16Z"
+#   name: dhon
+#   namespace: default
+#   annotations:
+#      iam.gke.io/gcp-service-account: nur-worload-identity-test@methodical-bee-198709.iam.gserviceaccount.com
+
+---
+
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mydhon
+  namespace: default 
+  annotations:
+    iam.gke.io/gcp-service-account: nur-worload-identity-test@methodical-bee-198709.iam.gserviceaccount.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default 
+  name: pod-creator
+
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create", "get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-creator
+  namespace: default 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-creator
+subjects:
+- kind: ServiceAccount
+  name: mydhon
+  namespace: default
+
+--- 
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: workload-identity-test
+  namespace: default
+spec:
+  containers:
+  - image: google/cloud-sdk:slim
+    name: workload-identity-test
+    command: ["sleep","infinity"]
+  serviceAccountName: mydhon 
+  nodeSelector:
+    iam.gke.io/gke-metadata-server-enabled: "true"
