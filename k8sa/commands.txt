@@ -1,0 +1,16 @@
+kubectl run nginx --image=nginx
+kubectl exect nginx -it /bin/bash 
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin
+
+kubectl version 
+
+kubectl get pods #should get forbidden with default service account 
+
+kubectl apply -f service-account.yaml
+
+
+kubectl exect nginx -it /bin/bash 
+kubectl get pods # should be ok 
+kubectl get nodes # should be forbidden 
