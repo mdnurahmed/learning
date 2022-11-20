@@ -43,18 +43,30 @@ subjects:
   name: mydhon
   namespace: default
 
+--- 
 
----
+
 apiVersion: v1
 kind: Pod
 metadata:
-  name: wtf
+  name: imgaepulltest 
   namespace: default
 spec:
   containers:
   - image: us-central1-docker.pkg.dev/methodical-bee-198709/lolita/go:neel
     name: workload-identity-test
     command: ["sleep","infinity"]
-  serviceAccountName: mydhon 
-  nodeSelector:
-    iam.gke.io/gke-metadata-server-enabled: "true"
+---
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: workload-identity-test
+  namespace: default
+spec:
+  containers:
+  - image: google/cloud-sdk:slim
+    name: workload-identity-test
+    command: ["sleep","infinity"]
+  serviceAccountName: mydhon

@@ -1,0 +1,83 @@
+#https://blog.container-solutions.com/using-google-container-registry-with-kubernetes
+
+kubectl config use-context docker-desktop 
+
+kubectl create secret docker-registry gcr-json-key \
+ --docker-server=us-central1-docker.pkg.dev/methodical-bee-198709/lolita \
+ --docker-username=_json_key \  #it will always be "_json_key"
+ --docker-password="$(cat ./json-key-file.json)" \
+ --docker-email=any@valid.email
+
+
+ kubectl patch serviceaccount mydhon \
+ -p '{"imagePullSecrets": [{"name": "gcr-json-key"}]}'
+
+kubectl apply -f fmt.yaml 
+
+
+
+
+after patching the serviceaccount "mydhon" looks like this 
+
+apiVersion: v1
+imagePullSecrets:
+- name: gcr-json-key
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: nur-worload-identity-test@methodical-bee-198709.iam.gserviceaccount.com
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{"iam.gke.io/gcp-service-account":"nur-worload-identity-test@methodical-bee-198709.iam.gserviceaccount.com"},"name":"mydhon","namespace":"default"}}
+  creationTimestamp: "2022-11-20T12:00:49Z"
+  name: mydhon
+  namespace: default
+  resourceVersion: "48551"
+  uid: 18cde9de-424a-435a-aa05-ced662145aff
+
+kubectl patch serviceaccount default \
+ -p '{"imagePullSecrets": [{"name": "gcr-json-key"}]}'
+kubectl apply -f fml.yaml 
+
+
+
+
+==============
+
+
+Access token (current login account in gcloud has to have the permissions)
+For keys that are short-lived for one-time and instant usage, you can create a GCR access token for your ImagePullSecrets. For this, you need to have gcloud installed and correctly configured.
+
+Creating a secret is virtually the same as with JSON keys
+
+  
+kubectl create secret docker-registry gcr-access-token \
+ --docker-server=eu.gcr.io \
+ --docker-username=oauth3accesstoken \
+ --docker-password="$(gcloud auth print-access-token)" \
+ --docker-email=any@valid.email
+
+
+except using oauth3accesstoken instead of _json_key as username and the output of gcloud auth print-access-token as password.
+
+
+kubectl patch serviceaccount default \
+ -p '{"imagePullSecrets": [{"name": "gcr-json-key"}]}'
+
+
+
+
+ImagePullSecrets for single pods
+
+ In case you want to use the secret for one specific pod only, all you need to do is add the secret to your pod.yaml instead of patching the service account with your secret.
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: empty-debian
+spec:
+  containers:
+  - name: empty-debian-container
+    image: eu.gcr.io/lian-empty-project/empty-debian-container
+  imagePullSecrets:
+  - name: gcr-secret
