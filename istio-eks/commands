@@ -1,0 +1,859 @@
+envoy proxy -> made by lyft 
+
+ingress-controller-svc -> load balancer 
+ingress-controlelr-pod -> ruting rules 
+
+stand alone side car -> istio-ingress-gateway-pod 
+side-car-proxy -> injected into other pods 
+mTLS is on by default -> sidecar to sidecar 
+
+
+ingress 
+----------
+ingress-controller-svc 
+ingress-controller-pod 
+ingress-resource-yaml-file ----> forwards traffic to -----> k8s service (has to be node port ,cannot be clusterip ? )
+
+
+istio
+--------
+
+ingress-resource-yaml-file-------->is now in istio ------>istio-VS-yaml-file 
+
+
+istiod -> istios control plane -> have multiple containers like pilot , citadel , galley (after 1.5 all these pods are in istiod )
+
+
+istiod makes sure the istio configurations are propagated to the sidecar proxy and stanalone envoys (istio-ingress-gateway-pod )
+
+
+
+
+❯ istioctl install --set profile=demo
+This will install the Istio 1.16.0 demo profile with ["Istio core" "Istiod" "Ingress gateways" "Egress gateways"] components into the cluster. Proceed? (y/N) y
+✔ Istio core installed
+✔ Istiod installed
+✔ Ingress gateways installed
+✔ Egress gateways installed
+✔ Installation complete
+Making this installation the default for injection and validation.
+
+Thank you for installing Istio 1.16.  Please take a few minutes to tell us about your install/upgrade experience!  https://forms.gle/99uiMML96AmsXY5d6
+
+
+
+❯ istioctl analyze --all-namespaces
+Info [IST0102] (Namespace default) The namespace is not enabled for Istio injection. Run 'kubectl label namespace default istio-injection=enabled' to enable it, or 'kubectl label namespace default istio-injection=disabled' to explicitly mark it as not needing injection.
+
+
+❯ kubectl get pod,svc -n istio-system
+W1127 20:54:19.275814    4678 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME                                        READY   STATUS    RESTARTS   AGE
+pod/istio-egressgateway-d84b5f89f-f27vz     1/1     Running   0          3m34s
+pod/istio-ingressgateway-869ccf7495-4jtnl   1/1     Running   0          3m34s
+pod/istiod-689fd979b-cfcz7                  1/1     Running   0          3m45s
+
+NAME                           TYPE           CLUSTER-IP    EXTERNAL-IP    PORT(S)                                                                      AGE
+service/istio-egressgateway    ClusterIP      10.56.11.81   <none>         80/TCP,443/TCP                                                               3m34s
+service/istio-ingressgateway   LoadBalancer   10.56.0.200   34.64.215.70   15021:31857/TCP,80:32002/TCP,443:32258/TCP,31400:30895/TCP,15443:31971/TCP   3m34s
+service/istiod                 ClusterIP      10.56.9.107   <none>         15010/TCP,15012/TCP,443/TCP,15014/TCP                                        3m44s
+
+
+
+
+
+A TCP LOADBLANCER IS HERE NOW 
+
+
+
+
+
+# first describe default namespace
+kubectl describe ns default
+
+
+
+kubectl label namespace default istio-injection=enabled
+
+
+# verify label is added
+# output
+Name:         default
+Labels:       istio-injection=enabled
+Annotations:  <none>
+Status:       Active
+No resource quota.
+No resource limits.
+
+# to disable
+kubectl label namespace default istio-injection-
+
+
+
+❯ k apply -f addons
+W1127 21:08:38.228034    5484 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+serviceaccount/grafana created
+configmap/grafana created
+service/grafana created
+deployment.apps/grafana created
+configmap/istio-grafana-dashboards created
+configmap/istio-services-grafana-dashboards created
+deployment.apps/jaeger created
+service/tracing created
+service/zipkin created
+service/jaeger-collector created
+serviceaccount/kiali created
+configmap/kiali created
+clusterrole.rbac.authorization.k8s.io/kiali-viewer created
+clusterrole.rbac.authorization.k8s.io/kiali created
+clusterrolebinding.rbac.authorization.k8s.io/kiali created
+role.rbac.authorization.k8s.io/kiali-controlplane created
+rolebinding.rbac.authorization.k8s.io/kiali-controlplane created
+service/kiali created
+deployment.apps/kiali created
+serviceaccount/prometheus created
+configmap/prometheus created
+clusterrole.rbac.authorization.k8s.io/prometheus created
+clusterrolebinding.rbac.authorization.k8s.io/prometheus created
+service/prometheus created
+deployment.apps/prometheus created
+
+
+
+
+
+❯ istioctl dashboard grafana
+http://localhost:3000
+Failed to open browser; open http://localhost:3000 in your browser.
+
+
+
+
+import dashboard from grafana.com using grafana dashoard url or id 
+
+
+for k8 monitoring grafana dashboard id - 3119,10856
+
+
+
+
+install guestbook app 
+k apply -f deployment_1.yaml
+
+❯ k get svc
+W1127 22:35:08.755850    7089 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME           TYPE           CLUSTER-IP    EXTERNAL-IP    PORT(S)        AGE
+frontend       LoadBalancer   10.56.13.31   34.64.40.213   80:30634/TCP   114s
+kubernetes     ClusterIP      10.56.0.1     <none>         443/TCP        4h48m
+redis-master   ClusterIP      10.56.7.191   <none>         6379/TCP       114s
+redis-slave    ClusterIP      10.56.0.215   <none>         6379/TCP       114s
+
+
+
+go to the loadbalancer ip
+
+we also should have a load balancer for istio 
+
+
+❯ k get all -A | grep istio-ingressgateway
+W1127 22:39:58.433592    8030 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+istio-system   pod/istio-ingressgateway-869ccf7495-4jtnl                 1/1     Running   0          109m
+istio-system   service/istio-ingressgateway   LoadBalancer   10.56.0.200    34.64.215.70   15021:31857/TCP,80:32002/TCP,443:32258/TCP,31400:30895/TCP,15443:31971/TCP   109m
+istio-system   deployment.apps/istio-ingressgateway            1/1     1            1           109m
+istio-system   replicaset.apps/istio-ingressgateway-869ccf7495            1         1         1       109m
+
+
+
+❯ k get service/istio-ingressgateway -n istio-system
+W1127 22:40:36.459025    8044 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME                   TYPE           CLUSTER-IP    EXTERNAL-IP    PORT(S)                                                                      AGE
+istio-ingressgateway   LoadBalancer   10.56.0.200   34.64.215.70   15021:31857/TCP,80:32002/TCP,443:32258/TCP,31400:30895/TCP,15443:31971/TCP   109m
+
+
+
+
+
+kubectl create namespace nginx-ingress-controller
+helm repo add stable https://charts.helm.sh/stable
+helm repo update
+helm install nginx-ingress-controller stable/nginx-ingress -n nginx-ingress-controller
+
+
+
+❯ k get all -n  nginx-ingress-controller
+W1127 22:46:21.947611    8282 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME                                                            READY   STATUS    RESTARTS   AGE
+pod/nginx-ingress-controller-controller-6764777b54-wv5qt        0/1     Running   0          23s
+pod/nginx-ingress-controller-default-backend-6fc69545bf-8ljmv   1/1     Running   0          23s
+
+NAME                                               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                      AGE
+service/nginx-ingress-controller-controller        LoadBalancer   10.56.15.116   <pending>     80:31588/TCP,443:31924/TCP   23s
+service/nginx-ingress-controller-default-backend   ClusterIP      10.56.9.147    <none>        80/TCP                       23s
+
+NAME                                                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nginx-ingress-controller-controller        0/1     1            0           24s
+deployment.apps/nginx-ingress-controller-default-backend   1/1     1            1           24s
+
+NAME                                                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/nginx-ingress-controller-controller-6764777b54        1         1         0       24s
+replicaset.apps/nginx-ingress-controller-default-backend-6fc69545bf   1         1         1       24s
+
+
+
+
+nginx-ingress-controller   service/nginx-ingress-controller-controller        LoadBalancer   10.56.15.116   34.64.149.206   80:31588/TCP,443:31924/TCP
+
+
+change host file 
+
+
+
+
+❯ k get all -A | grep gateway
+W1128 00:39:07.164533   14988 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+istio-system   pod/istio-egressgateway-d84b5f89f-f27vz                   1/1     Running   0          3h48m
+istio-system   pod/istio-ingressgateway-869ccf7495-4jtnl                 1/1     Running   0          3h48m
+istio-system   service/istio-egressgateway    ClusterIP      10.56.11.81    <none>         80/TCP,443/TCP                                                               3h48m
+istio-system   service/istio-ingressgateway   LoadBalancer   10.56.0.200    34.64.215.70   15021:31857/TCP,80:32002/TCP,443:32258/TCP,31400:30895/TCP,15443:31971/TCP   3h48m
+istio-system   deployment.apps/istio-egressgateway             1/1     1            1           3h48m
+istio-system   deployment.apps/istio-ingressgateway            1/1     1            1           3h48m
+istio-system   replicaset.apps/istio-egressgateway-d84b5f89f              1         1         1       3h48m
+istio-system   replicaset.apps/istio-ingressgateway-869ccf7495            1         1         1       3h48m
+
+
+
+
+
+
+virtual service -> targets a gateway -> and gateway targets a istio-ingressgateway pod 
+
+deploy bookinfo.yaml , gateway-bookinfo.yaml, virtualservice-bookinfo.yaml 
+
+
+
+the hosts file look like this 
+
+34.64.215.70       guestbook.com #istio LB ip 
+34.64.215.70       bookinfo.com #istio LB ip 
+34.117.127.63      guestbookingress.com #GCP ingress ip
+
+
+also guestbook service LB type ...you can copy paste that ip in the browser and can access guestbook too 
+
+
+
+service and deployment should have the same "app:" label for kiali to work 
+
+eks video 33-> weight based routing 
+--------------------------------------
+virtual service can be only gateway/edge-proxy speicific , only sidecar-proxy specific 
+or both 
+
+
+if we look at the virtual service for productpage 
+
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bookinfo
+spec:
+  hosts: # destinations that these routing rules apply to. VirtualService must be bound to the gateway and must have one or more hosts that match the hosts specified in a server
+  - "bookinfo.com"
+  gateways:
+  - bookinfo-gateway # this should match with gateway's name
+  http: # L7 load balancing by http path and host, just like K8s ingress resource
+  - match:
+    - uri:
+        exact: /productpage
+    - uri:
+        prefix: /static
+    - uri:
+        exact: /login
+    - uri:
+        exact: /logout
+    - uri:
+        prefix: /api/v1/products
+    route:
+    - destination:
+        host: productpage # specify service name, either by relative or absolute path
+        port:
+
+
+
+this vs applies to edge-proxy in the (gateway namspace bookinfo-gateway which can handle "bookinfo.com") 
+this means when you try to reach "bookinfo.com" and you reach the edge-proxy route them to actual service lke like this 
+
+
+
+
+
+
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts: # destinations that these routing rules apply to. VirtualService must be bound to the gateway and must have one or more hosts that match the hosts specified in a server
+  - reviews
+  gateways: # names of gateways and sidecars that should apply these routes
+  - bookinfo-gateway # Don't ONLY USE this gateway as "reviews" k8s service is used internally by productpage service, so this VS rule should be applied to Envoy sidecar proxy inside reviews pod, not edge proxy in gateway pod. 
+  - mesh # applies to all the sidecars in the mesh. The reserved word mesh is used to imply all the sidecars in the mesh. When gateway field is omitted, the default gateway (mesh) will be used, which would apply the rule to all sidecars in the mesh. If a list of gateway names is provided, the rules will apply only to the gateways. To apply the rules to both gateways and sidecars, specify mesh as one of the gateway names. Ref: https://istio.io/latest/docs/reference/config/networking/virtual-service/#VirtualService
+  http: # L7 load balancing by http path and host, just like K8s ingress resource
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 10 # <--- canary release. % of traffic to subset v1
+    - destination:
+        host: reviews
+        subset: v2
+      weight: 10
+    - destination:
+        host: reviews
+        subset: v3
+      weight: 80
+
+
+
+this vs applies to both edge-proxy and side-car proxy although edge-proxy here is not required 
+
+this says when you try to reach "reviews.svc.default.cluster.local" use this information
+
+
+
+
+so why do we need this gateway ? seems redundant right ? not really 
+gateways in istio can do TLS termination 
+
+
+
+
+gke ingress diye SNI kivabe kore ?
+
+
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-gmc-ingress
+  annotations:
+    networking.gke.io/managed-certificates: "FIRST_CERT_NAME,SECOND_CERT_NAME"
+spec:
+  rules:
+  - host: FIRST_DOMAIN
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-mc-service
+            port:
+              number: 60001
+  - host: SECOND_DOMAIN
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-mc-service
+            port:
+              number: 60002
+
+
+
+
+istio teo same 
+
+host different holei bujhe nibe .... port 443 hobe onek gula host er ...khali name ta unique hote hobe 
+
+
+
+
+loadbalancer weighted canary er sathe valovabe jay na karon age weighting rule apply hoy erpor loadbalancer apply hoy
+so consistent hashing based load balancing er jonno pod level a v1,v2 rekhe erpor weighted sarai use korte hobe (no destinationrule or desitionation rule without version - one subset who target app:appName )
+
+
+
+istio customaization 
+----------------------
+
+❯ istioctl profile list
+Istio configuration profiles:
+    ambient
+    default
+    demo
+    empty
+    external
+    minimal
+    openshift
+    preview
+    remote
+  
+
+
+❯ istioctl install --set profile=minimal -y
+✔ Istio core installed
+✔ Istiod installed
+✔ Installation complete
+Making this installation the default for injection and validation.
+
+Thank you for installing Istio 1.16.  Please take a few minutes to tell us about your install/upgrade experience!  https://forms.gle/99uiMML96AmsXY5d6
+
+kubectl label namespace default istio-injection=enabled
+
+
+
+❯ istioctl profile dump > myprofile
+❯ code myprofile
+
+
+
+
+
+
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  components:
+    base:
+      enabled: true
+    cni:
+      enabled: false
+    egressGateways:
+    - enabled: false
+      name: istio-egressgateway
+    ingressGateways:
+    - enabled: true
+      name: istio-ingressgateway
+    istiodRemote:
+      enabled: false
+    pilot:
+      enabled: true
+  hub: docker.io/istio
+  meshConfig:
+    defaultConfig:
+      proxyMetadata: {}
+    enablePrometheusMerge: true
+  profile: default
+  tag: 1.16.0
+  values:
+    base:
+      enableCRDTemplates: false
+      validationURL: ""
+    defaultRevision: ""
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-egressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/egressgateway-certs
+          name: egressgateway-certs
+          secretName: istio-egressgateway-certs
+        - mountPath: /etc/istio/egressgateway-ca-certs
+          name: egressgateway-ca-certs
+          secretName: istio-egressgateway-ca-certs
+        type: ClusterIP
+      istio-ingressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-ingressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          secretName: istio-ingressgateway-certs
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          secretName: istio-ingressgateway-ca-certs
+        type: LoadBalancer
+    global:
+      configValidation: true
+      defaultNodeSelector: {}
+      defaultPodDisruptionBudget:
+        enabled: true
+      defaultResources:
+        requests:
+          cpu: 10m
+      imagePullPolicy: ""
+      imagePullSecrets: []
+      istioNamespace: istio-system
+      istiod:
+        enableAnalysis: false
+      jwtPolicy: third-party-jwt
+      logAsJson: false
+      logging:
+        level: default:info
+      meshNetworks: {}
+      mountMtlsCerts: false
+      multiCluster:
+        clusterName: ""
+        enabled: false
+      network: ""
+      omitSidecarInjectorConfigMap: false
+      oneNamespace: false
+      operatorManageWebhooks: false
+      pilotCertProvider: istiod
+      priorityClassName: ""
+      proxy:
+        autoInject: enabled
+        clusterDomain: cluster.local
+        componentLogLevel: misc:error
+        enableCoreDump: false
+        excludeIPRanges: ""
+        excludeInboundPorts: ""
+        excludeOutboundPorts: ""
+        image: proxyv2
+        includeIPRanges: '*'
+        logLevel: warning
+        privileged: false
+        readinessFailureThreshold: 30
+        readinessInitialDelaySeconds: 1
+        readinessPeriodSeconds: 2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        statusPort: 15020
+        tracer: zipkin
+      proxy_init:
+        image: proxyv2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 10m
+            memory: 10Mi
+      sds:
+        token:
+          aud: istio-ca
+      sts:
+        servicePort: 0
+      tracer:
+        datadog: {}
+        lightstep: {}
+        stackdriver: {}
+        zipkin: {}
+      useMCP: false
+    istiodRemote:
+      injectionURL: ""
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMax: 5
+      autoscaleMin: 1
+      configMap: true
+      cpu:
+        targetAverageUtilization: 80
+      enableProtocolSniffingForInbound: true
+      enableProtocolSniffingForOutbound: true
+      env: {}
+      image: pilot
+      keepaliveMaxServerConnectionAge: 30m
+      nodeSelector: {}
+      podLabels: {}
+      replicaCount: 1
+      traceSampling: 1
+    telemetry:
+      enabled: true
+      v2:
+        enabled: true
+        metadataExchange:
+          wasmEnabled: false
+        prometheus:
+          enabled: true
+          wasmEnabled: false
+        stackdriver:
+          configOverride: {}
+          enabled: false
+          logging: false
+          monitoring: false
+          topology: false
+
+
+
+ k get all -n istio-system
+W1129 17:33:35.780670    2609 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME                          READY   STATUS    RESTARTS   AGE
+pod/istiod-6b56cffbd9-n6p2x   1/1     Running   0          3m18s
+
+NAME             TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)                                 AGE
+service/istiod   ClusterIP   10.76.2.113   <none>        15010/TCP,15012/TCP,443/TCP,15014/TCP   3m17s
+
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/istiod   1/1     1            1           3m18s
+
+NAME                                DESIRED   CURRENT   READY   AGE
+replicaset.apps/istiod-6b56cffbd9   1         1         1       3m18s
+
+NAME                                         REFERENCE           TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/istiod   Deployment/istiod   1%/80%    1         5         1          3m17s
+
+
+
+things to consider changing 
+
+      cpu:
+        targetAverageUtilization: 80
+
+
+
+
+   istio-ingressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-ingressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          secretName: istio-ingressgateway-certs
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          secretName: istio-ingressgateway-ca-certs
+        type: LoadBalancer
+
+
+  etar type clusterip deya jay 
+
+
+
+
+
+
+a better way i think is this 
+
+❯ istioctl profile dump default > mydefaultprofile
+❯ code mydefaultprofile
+
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  components:
+    base:
+      enabled: true
+    cni:
+      enabled: false
+    egressGateways:
+    - enabled: false
+      name: istio-egressgateway
+    ingressGateways:
+    - enabled: true
+      name: istio-ingressgateway
+    istiodRemote:
+      enabled: false
+    pilot:
+      enabled: true
+  hub: docker.io/istio
+  meshConfig:
+    defaultConfig:
+      proxyMetadata: {}
+    enablePrometheusMerge: true
+  profile: default
+  tag: 1.16.0
+  values:
+    base:
+      enableCRDTemplates: false
+      validationURL: ""
+    defaultRevision: ""
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-egressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/egressgateway-certs
+          name: egressgateway-certs
+          secretName: istio-egressgateway-certs
+        - mountPath: /etc/istio/egressgateway-ca-certs
+          name: egressgateway-ca-certs
+          secretName: istio-egressgateway-ca-certs
+        type: ClusterIP
+      istio-ingressgateway:
+        autoscaleEnabled: true
+        env: {}
+        name: istio-ingressgateway
+        secretVolumes:
+        - mountPath: /etc/istio/ingressgateway-certs
+          name: ingressgateway-certs
+          secretName: istio-ingressgateway-certs
+        - mountPath: /etc/istio/ingressgateway-ca-certs
+          name: ingressgateway-ca-certs
+          secretName: istio-ingressgateway-ca-certs
+        type: LoadBalancer
+    global:
+      configValidation: true
+      defaultNodeSelector: {}
+      defaultPodDisruptionBudget:
+        enabled: true
+      defaultResources:
+        requests:
+          cpu: 10m
+      imagePullPolicy: ""
+      imagePullSecrets: []
+      istioNamespace: istio-system
+      istiod:
+        enableAnalysis: false
+      jwtPolicy: third-party-jwt
+      logAsJson: false
+      logging:
+        level: default:info
+      meshNetworks: {}
+      mountMtlsCerts: false
+      multiCluster:
+        clusterName: ""
+        enabled: false
+      network: ""
+      omitSidecarInjectorConfigMap: false
+      oneNamespace: false
+      operatorManageWebhooks: false
+      pilotCertProvider: istiod
+      priorityClassName: ""
+      proxy:
+        autoInject: enabled
+        clusterDomain: cluster.local
+        componentLogLevel: misc:error
+        enableCoreDump: false
+        excludeIPRanges: ""
+        excludeInboundPorts: ""
+        excludeOutboundPorts: ""
+        image: proxyv2
+        includeIPRanges: '*'
+        logLevel: warning
+        privileged: false
+        readinessFailureThreshold: 30
+        readinessInitialDelaySeconds: 1
+        readinessPeriodSeconds: 2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        statusPort: 15020
+        tracer: zipkin
+      proxy_init:
+        image: proxyv2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 10m
+            memory: 10Mi
+      sds:
+        token:
+          aud: istio-ca
+      sts:
+        servicePort: 0
+      tracer:
+        datadog: {}
+        lightstep: {}
+        stackdriver: {}
+        zipkin: {}
+      useMCP: false
+    istiodRemote:
+      injectionURL: ""
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMax: 5
+      autoscaleMin: 1
+      configMap: true
+      cpu:
+        targetAverageUtilization: 80
+      enableProtocolSniffingForInbound: true
+      enableProtocolSniffingForOutbound: true
+      env: {}
+      image: pilot
+      keepaliveMaxServerConnectionAge: 30m
+      nodeSelector: {}
+      podLabels: {}
+      replicaCount: 1
+      traceSampling: 1
+    telemetry:
+      enabled: true
+      v2:
+        enabled: true
+        metadataExchange:
+          wasmEnabled: false
+        prometheus:
+          enabled: true
+          wasmEnabled: false
+        stackdriver:
+          configOverride: {}
+          enabled: false
+          logging: false
+          monitoring: false
+          topology: false
+
+
+
+
+
+❯ istioctl install --set profile=default -y
+✔ Istio core installed
+✔ Istiod installed
+✔ Ingress gateways installed
+✔ Installation complete
+Making this installation the default for injection and validation.
+
+Thank you for installing Istio 1.16.  Please take a few minutes to tell us about your install/upgrade experience!  https://forms.gle/99uiMML96AmsXY5d6
+
+
+
+
+
+now lets tweak this 
+
+
+
+❯ k get all -n istio-system
+W1129 17:39:34.361605    2826 gcp.go:119] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.26+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME                                        READY   STATUS    RESTARTS   AGE
+pod/istio-ingressgateway-677f4f9cc4-kz4c5   1/1     Running   0          3m14s
+pod/istiod-6b56cffbd9-n6p2x                 1/1     Running   0          9m16s
+
+NAME                           TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)                                      AGE
+service/istio-ingressgateway   LoadBalancer   10.76.1.252   35.187.194.173   15021:30881/TCP,80:32689/TCP,443:32088/TCP   3m14s
+service/istiod                 ClusterIP      10.76.2.113   <none>           15010/TCP,15012/TCP,443/TCP,15014/TCP        9m16s
+
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/istio-ingressgateway   1/1     1            1           3m15s
+deployment.apps/istiod                 1/1     1            1           9m17s
+
+NAME                                              DESIRED   CURRENT   READY   AGE
+replicaset.apps/istio-ingressgateway-677f4f9cc4   1         1         1       3m15s
+replicaset.apps/istiod-6b56cffbd9                 1         1         1       9m17s
+
+NAME                                                       REFERENCE                         TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/istio-ingressgateway   Deployment/istio-ingressgateway   5%/80%    1         5         1          3m15s
+horizontalpodautoscaler.autoscaling/istiod                 Deployment/istiod                 1%/80%    1         5         1          9m16s
+
+
+
+
+
+❯ istioctl manifest apply -f mydefaultprofile
+>kubectl label namespace default istio-injection=enabled
+> k apply -f deployment_4.yaml 
+
+
+
+
+
+istioctl manifest apply --set profile=default --set addonComponents.kiali.enabled=true 
