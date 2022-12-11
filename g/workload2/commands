@@ -1,0 +1,20 @@
+docker run fuckmylife -v $(pwd):/app 
+
+docker run -d debian sleep 300
+
+
+docker run fuckmylife -v $(pwd):/app sleep 300
+
+
+docker run duckmylife -v $(pwd):/app sleep 300
+
+docker run duckmylife sleep 300
+
+
+docker build -t duckmylife -f dockerfile .
+
+
+docker run -d -v $(pwd)/haha:/app  duckmylife sleep 3000000
+
+
+docker exec -it  dcbd38829be2 /bin/bash
