@@ -1,0 +1,10 @@
+FROM google/cloud-sdk:latest
+# Downloading gcloud package
+WORKDIR /app 
+RUN apt-get install wget
+RUN apt install zip -y
+RUN wget https://releases.hashicorp.com/terraform/0.13.1/terraform_0.13.1_linux_amd64.zip
+RUN unzip terraform_0.13.1_linux_amd64.zip
+RUN mv terraform /usr/local/bin
+RUN rm terraform_0.13.1_linux_amd64.zip
+COPY . .  
