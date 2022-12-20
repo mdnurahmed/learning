@@ -1,0 +1,30 @@
+
+#enable workload idenity in the cluster 
+
+#update the nodepool use gke  metadata server (was stuck bcoz of this last time)
+gcloud container node-pools update default-pool --cluster=cluster-1 --workload-metadata=GKE_METADATA --zone=us-central1-c --project=methodical-bee-198709
+
+#create gcloud sa... this GSA_NAME has to be same in the yaml file (in my case its "mydhon") 
+gcloud iam service-accounts create GSA_NAME \
+    --project=GSA_PROJECT
+
+#create a mydhon k8 sa with annotation , test pod which has gcloud with "mydhon" k8 sa 
+kubectl apply -f fml.yaml 
+
+#add binding 
+gcloud iam service-accounts add-iam-policy-binding GSA_NAME@GSA_PROJECT.iam.gserviceaccount.com \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/KSA_NAME]"
+
+
+kubectl exec workload-identity-test -it /bin/bash 
+gcloud auth list #should show the GSA instead of the gcloud sa attached to the cluster 
+
+gsutil ls #should fail coz GSA doesnt have the permission even if the cluster sa does 
+
+#add permision to the GSA to read from bucket...put some object in the bucet  
+gsutil ls gs://that_bucket/ #should succedd 
+
+
+gsutil ls gs://butterflynurahmedsabbir
+gsutil ls gs://kittennurahmedsabbir
