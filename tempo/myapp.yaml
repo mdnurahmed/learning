@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: myapp
+  name: myapp
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - image: nurahmedsabbir/trace-go-demo:v1
+        name: myapp
+        args: ["all"]
+        env:
+          - name: ENDPOINT
+            value: tempo.observability.svc.cluster.local:6831
+        # resources:
+        #   limits:
+        #     cpu: 100m
+        #     memory: 100M
+        #   requests:
+        #     cpu: 100m
+        #     memory: 100M
